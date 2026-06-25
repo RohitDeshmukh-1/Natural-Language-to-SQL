@@ -1,0 +1,5 @@
+-r requirements.txt
+
+# only needed to run the test suite, not to run the app itself
+pytest==9.1.1
+httpx==0.28.1

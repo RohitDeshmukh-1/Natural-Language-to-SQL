@@ -1,0 +1,14 @@
+# real secrets - never commit this
+.env
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# editor/OS noise
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sparkline — Natural Language SQL Assistant</title>
+    <meta name="description" content="Ask business questions in plain English. Sparkline translates them to SQL, runs them safely, and gives you instant answers.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* ================================================================
+           Design System
+           ================================================================ */
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --bg-card-hover: rgba(17, 24, 39, 0.85);
+            --bg-input: rgba(15, 23, 42, 0.8);
+            --bg-glass: rgba(255, 255, 255, 0.03);
+
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-accent: rgba(99, 102, 241, 0.3);
+            --border-focus: rgba(99, 102, 241, 0.6);
+
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --text-accent: #818cf8;
+
+            --accent-indigo: #6366f1;
+            --accent-violet: #8b5cf6;
+            --accent-cyan: #06b6d4;
+            --accent-emerald: #10b981;
+            --accent-rose: #f43f5e;
+            --accent-amber: #f59e0b;
+
+            --gradient-primary: linear-gradient(135deg, #6366f1, #8b5cf6, #06b6d4);
+            --gradient-bg: radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                           radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+                           radial-gradient(ellipse at 50% 80%, rgba(6, 182, 212, 0.04) 0%, transparent 50%);
+
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+            --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ================================================================
+           Reset & Base
+           ================================================================ */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Background gradient layer */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: var(--gradient-bg);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Subtle grid pattern */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ================================================================
+           Layout
+           ================================================================ */
+        .app-container {
+            position: relative;
+            z-index: 1;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ================================================================
+           Header
+           ================================================================ */
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            animation: fadeInDown 0.6s var(--transition-slow) both;
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-subtle);
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .header-badge .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-emerald);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            max-width: 520px;
+            margin: 0 auto;
+        }
+
+        /* ================================================================
+           Config Panel
+           ================================================================ */
+        .config-panel {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            animation: fadeInDown 0.6s 0.1s var(--transition-slow) both;
+        }
+
+        .config-field {
+            flex: 1;
+            position: relative;
+        }
+
+        .config-field label {
+            position: absolute;
+            top: -8px;
+            left: 12px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            background: var(--bg-primary);
+            padding: 0 6px;
+            z-index: 2;
+        }
+
+        .config-input {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            transition: border-color var(--transition-fast);
+            outline: none;
+        }
+
+        .config-input:focus {
+            border-color: var(--border-focus);
+        }
+
+        .config-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* ================================================================
+           Query Input
+           ================================================================ */
+        .query-section {
+            animation: fadeInUp 0.6s 0.2s var(--transition-slow) both;
+        }
+
+        .query-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            transition: border-color var(--transition-base), box-shadow var(--transition-base);
+        }
+
+        .query-card:focus-within {
+            border-color: var(--border-accent);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .query-input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.75rem;
+        }
+
+        #question-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 1rem;
+            line-height: 1.5;
+            resize: none;
+            min-height: 24px;
+            max-height: 120px;
+        }
+
+        #question-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .submit-btn {
+            flex-shrink: 0;
+            width: 42px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--gradient-primary);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            transition: transform var(--transition-fast), opacity var(--transition-fast), box-shadow var(--transition-fast);
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+        }
+
+        .submit-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .submit-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Loading spinner inside button */
+        .submit-btn .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: none;
+        }
+
+        .submit-btn.loading .spinner { display: block; }
+        .submit-btn.loading .send-icon { display: none; }
+
+        /* Quick suggestion chips */
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .suggestion-chip {
+            padding: 6px 14px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-subtle);
+            border-radius: 100px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            white-space: nowrap;
+        }
+
+        .suggestion-chip:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--border-accent);
+            color: var(--text-accent);
+        }
+
+        /* ================================================================
+           Results
+           ================================================================ */
+        .results-section {
+            margin-top: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .result-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            animation: fadeInUp 0.4s var(--transition-slow) both;
+        }
+
+        .result-card:nth-child(2) { animation-delay: 0.08s; }
+        .result-card:nth-child(3) { animation-delay: 0.16s; }
+        .result-card:nth-child(4) { animation-delay: 0.24s; }
+
+        .result-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.875rem 1.25rem;
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+        }
+
+        .result-card-header .icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.7;
+        }
+
+        .result-card-body {
+            padding: 1rem 1.25rem;
+        }
+
+        /* Answer card */
+        .answer-card {
+            border-color: rgba(99, 102, 241, 0.2);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(139, 92, 246, 0.03));
+        }
+
+        .answer-text {
+            font-size: 1.05rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Refused card */
+        .refused-card {
+            border-color: rgba(244, 63, 94, 0.2);
+            background: linear-gradient(135deg, rgba(244, 63, 94, 0.06), rgba(244, 63, 94, 0.02));
+        }
+
+        .refused-card .answer-text {
+            color: #fda4af;
+        }
+
+        .refused-card .result-card-header {
+            color: var(--accent-rose);
+        }
+
+        /* Not supported card */
+        .unsupported-card {
+            border-color: rgba(245, 158, 11, 0.2);
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.06), rgba(245, 158, 11, 0.02));
+        }
+
+        .unsupported-card .answer-text {
+            color: #fcd34d;
+        }
+
+        .unsupported-card .result-card-header {
+            color: var(--accent-amber);
+        }
+
+        /* SQL display */
+        .sql-display {
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            color: #c4b5fd;
+            line-height: 1.7;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        .sql-keyword {
+            color: #818cf8;
+            font-weight: 500;
+        }
+
+        .sql-function {
+            color: #67e8f9;
+        }
+
+        .sql-string {
+            color: #86efac;
+        }
+
+        .sql-number {
+            color: #fda4af;
+        }
+
+        /* Tables used chips */
+        .tables-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .table-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px;
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 100px;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            color: #67e8f9;
+        }
+
+        .table-chip::before {
+            content: '';
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+        }
+
+        /* Data table */
+        .data-table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .data-table thead th {
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid var(--border-subtle);
+            white-space: nowrap;
+        }
+
+        .data-table tbody td {
+            padding: 10px 14px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            white-space: nowrap;
+        }
+
+        .data-table tbody tr {
+            transition: background var(--transition-fast);
+        }
+
+        .data-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table .numeric {
+            text-align: right;
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            color: var(--text-primary);
+        }
+
+        .row-count {
+            padding: 0.75rem 1.25rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-subtle);
+            text-align: right;
+        }
+
+        /* Error state */
+        .error-card {
+            border-color: rgba(244, 63, 94, 0.3);
+        }
+
+        .error-message {
+            color: #fda4af;
+            font-size: 0.9rem;
+        }
+
+        /* Loading skeleton */
+        .loading-skeleton {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .skeleton-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+
+        .skeleton-line {
+            height: 12px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+            background-size: 200% 100%;
+            border-radius: 6px;
+            animation: shimmerLine 1.5s ease-in-out infinite;
+        }
+
+        .skeleton-line + .skeleton-line {
+            margin-top: 8px;
+        }
+
+        .skeleton-line.short { width: 60%; }
+        .skeleton-line.medium { width: 80%; }
+
+        /* ================================================================
+           History (minimal)
+           ================================================================ */
+        .history-divider {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 2rem 0 1rem;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .history-divider::before,
+        .history-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-subtle);
+        }
+
+        .history-question {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .history-question strong {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* ================================================================
+           Footer
+           ================================================================ */
+        .footer {
+            margin-top: auto;
+            padding-top: 3rem;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .footer a {
+            color: var(--text-accent);
+            text-decoration: none;
+        }
+
+        /* ================================================================
+           Animations
+           ================================================================ */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        @keyframes shimmer {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        @keyframes shimmerLine {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        /* ================================================================
+           Responsive
+           ================================================================ */
+        @media (max-width: 640px) {
+            .app-container {
+                padding: 1.25rem 1rem 3rem;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .config-panel {
+                flex-direction: column;
+            }
+
+            .suggestions {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 4px;
+            }
+
+            .data-table {
+                font-size: 0.78rem;
+            }
+        }
+
+        /* ================================================================
+           Scrollbar
+           ================================================================ */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header" id="app-header">
+            <div class="header-badge">
+                <span class="dot"></span>
+                NL-to-SQL Engine
+            </div>
+            <h1>Sparkline</h1>
+            <p>Ask business questions in plain English. Get SQL-powered answers backed by real data, instantly.</p>
+        </header>
+
+        <!-- Config -->
+        <div class="config-panel" id="config-panel">
+            <div class="config-field">
+                <label for="api-key-input">API Key</label>
+                <input type="text" class="config-input" id="api-key-input"
+                       value="sparkline-dev-key-123"
+                       placeholder="X-API-Key header value">
+            </div>
+            <div class="config-field">
+                <label for="base-url-input">Base URL</label>
+                <input type="text" class="config-input" id="base-url-input"
+                       value="http://127.0.0.1:8000"
+                       placeholder="API base URL">
+            </div>
+        </div>
+
+        <!-- Query Input -->
+        <div class="query-section" id="query-section">
+            <div class="query-card">
+                <div class="query-input-wrapper">
+                    <textarea id="question-input" rows="1"
+                              placeholder="Ask a question about your business data…"
+                              autocomplete="off"></textarea>
+                    <button class="submit-btn" id="submit-btn" type="button" aria-label="Send question">
+                        <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                        <div class="spinner"></div>
+                    </button>
+                </div>
+                <div class="suggestions" id="suggestions">
+                    <button class="suggestion-chip" data-question="Who are our top 5 customers by revenue?">Top 5 customers</button>
+                    <button class="suggestion-chip" data-question="What is total revenue broken down by product category?">Revenue by category</button>
+                    <button class="suggestion-chip" data-question="How many employees do we have?">Employee count</button>
+                    <button class="suggestion-chip" data-question="Which product has the highest unit price?">Most expensive product</button>
+                    <button class="suggestion-chip" data-question="Delete all sales records">Test refusal</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Container -->
+        <div id="results-container"></div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            Powered by Groq &middot; Llama 3.3 70B &middot; SQLite &middot; FastAPI
+        </footer>
+    </div>
+
+    <script>
+    (() => {
+        'use strict';
+
+        // ── Elements ──────────────────────────────────────────────
+        const questionInput  = document.getElementById('question-input');
+        const submitBtn      = document.getElementById('submit-btn');
+        const apiKeyInput    = document.getElementById('api-key-input');
+        const baseUrlInput   = document.getElementById('base-url-input');
+        const resultsEl      = document.getElementById('results-container');
+        const suggestionsEl  = document.getElementById('suggestions');
+
+        // ── Auto-resize textarea ──────────────────────────────────
+        questionInput.addEventListener('input', () => {
+            questionInput.style.height = 'auto';
+            questionInput.style.height = Math.min(questionInput.scrollHeight, 120) + 'px';
+        });
+
+        // ── Submit on Enter (Shift+Enter for newline) ─────────────
+        questionInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitQuestion();
+            }
+        });
+
+        submitBtn.addEventListener('click', submitQuestion);
+
+        // ── Suggestion chips ──────────────────────────────────────
+        suggestionsEl.addEventListener('click', (e) => {
+            const chip = e.target.closest('.suggestion-chip');
+            if (!chip) return;
+            questionInput.value = chip.dataset.question;
+            questionInput.dispatchEvent(new Event('input'));
+            submitQuestion();
+        });
+
+        // ── Core: ask the API ─────────────────────────────────────
+        async function submitQuestion() {
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            const apiKey  = apiKeyInput.value.trim() || 'sparkline-dev-key-123';
+            const baseUrl = baseUrlInput.value.trim().replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+
+            // Show loading
+            setLoading(true);
+            showLoadingSkeleton(question);
+
+            try {
+                const res = await fetch(`${baseUrl}/ask`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey,
+                    },
+                    body: JSON.stringify({ question }),
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => null);
+                    throw new Error(errData?.detail || `HTTP ${res.status}: ${res.statusText}`);
+                }
+
+                const data = await res.json();
+                renderResult(question, data);
+
+            } catch (err) {
+                renderError(question, err.message);
+            } finally {
+                setLoading(false);
+                questionInput.value = '';
+                questionInput.style.height = 'auto';
+                questionInput.focus();
+            }
+        }
+
+        // ── Loading state ─────────────────────────────────────────
+        function setLoading(on) {
+            submitBtn.disabled = on;
+            submitBtn.classList.toggle('loading', on);
+            questionInput.disabled = on;
+        }
+
+        function showLoadingSkeleton(question) {
+            resultsEl.innerHTML = `
+                <div class="history-divider">Your Question</div>
+                <div class="history-question"><strong>${escapeHtml(question)}</strong></div>
+                <div class="loading-skeleton">
+                    <div class="skeleton-block">
+                        <div class="skeleton-line medium"></div>
+                        <div class="skeleton-line short"></div>
+                    </div>
+                    <div class="skeleton-block">
+                        <div class="skeleton-line"></div>
+                        <div class="skeleton-line medium"></div>
+                        <div class="skeleton-line short"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ── Render successful result ──────────────────────────────
+        function renderResult(question, data) {
+            const isRefused   = data.answer && data.answer.toLowerCase().includes('refused');
+            const isUnsupported = data.sql === null;
+            const hasResults  = data.result && data.result.length > 0;
+
+            let html = `<div class="history-divider">Your Question</div>`;
+            html += `<div class="history-question"><strong>${escapeHtml(question)}</strong></div>`;
+            html += `<div class="results-section">`;
+
+            // Answer card
+            let answerClass = 'answer-card';
+            let answerIcon  = '💡';
+            let headerLabel = 'Answer';
+            if (isRefused) {
+                answerClass = 'refused-card';
+                answerIcon  = '🛡️';
+                headerLabel = 'Request Refused';
+            } else if (isUnsupported) {
+                answerClass = 'unsupported-card';
+                answerIcon  = '⚠️';
+                headerLabel = 'Not Supported';
+            }
+
+            html += `
+                <div class="result-card ${answerClass}">
+                    <div class="result-card-header">
+                        <span>${answerIcon}</span>
+                        ${headerLabel}
+                    </div>
+                    <div class="result-card-body">
+                        <div class="answer-text">${escapeHtml(data.answer)}</div>
+                    </div>
+                </div>
+            `;
+
+            // SQL card (only if we have SQL)
+            if (data.sql) {
+                html += `
+                    <div class="result-card">
+                        <div class="result-card-header">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                            Generated SQL
+                        </div>
+                        <div class="result-card-body">
+                            <div class="sql-display">${highlightSQL(data.sql)}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Tables used
+            if (data.tables_used && data.tables_used.length > 0) {
+                html += `
+                    <div class="result-card">
+                        <div class="result-card-header">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                            Tables Queried
+                        </div>
+                        <div class="result-card-body">
+                            <div class="tables-list">
+                                ${data.tables_used.map(t => `<span class="table-chip">${escapeHtml(t)}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Data table
+            if (hasResults) {
+                const columns = Object.keys(data.result[0]);
+                html += `
+                    <div class="result-card">
+                        <div class="result-card-header">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            Result Data
+                        </div>
+                        <div class="data-table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>${columns.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr>
+                                </thead>
+                                <tbody>
+                                    ${data.result.map(row => `
+                                        <tr>${columns.map(c => {
+                                            const val = row[c];
+                                            const isNum = typeof val === 'number';
+                                            const display = isNum ? formatNumber(val) : escapeHtml(String(val ?? ''));
+                                            return `<td class="${isNum ? 'numeric' : ''}">${display}</td>`;
+                                        }).join('')}</tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="row-count">${data.result.length} row${data.result.length !== 1 ? 's' : ''} returned</div>
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+            resultsEl.innerHTML = html;
+        }
+
+        // ── Render error ──────────────────────────────────────────
+        function renderError(question, message) {
+            resultsEl.innerHTML = `
+                <div class="history-divider">Your Question</div>
+                <div class="history-question"><strong>${escapeHtml(question)}</strong></div>
+                <div class="results-section">
+                    <div class="result-card error-card">
+                        <div class="result-card-header" style="color: var(--accent-rose);">
+                            <span>❌</span> Error
+                        </div>
+                        <div class="result-card-body">
+                            <div class="error-message">${escapeHtml(message)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ── Helpers ───────────────────────────────────────────────
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function formatNumber(n) {
+            if (Number.isInteger(n)) return n.toLocaleString();
+            return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function highlightSQL(sql) {
+            const escaped = escapeHtml(sql);
+            const keywords = ['SELECT','FROM','JOIN','LEFT','RIGHT','INNER','OUTER','CROSS',
+                              'ON','WHERE','AND','OR','NOT','IN','BETWEEN','LIKE','IS','NULL',
+                              'GROUP\\s+BY','ORDER\\s+BY','HAVING','LIMIT','OFFSET','AS','DISTINCT',
+                              'CASE','WHEN','THEN','ELSE','END','WITH','UNION','ALL','EXISTS',
+                              'DESC','ASC','COUNT','SUM','AVG','MIN','MAX','COALESCE','CAST',
+                              'IFNULL','NULLIF','STRFTIME','DATE','ROUND','UPPER','LOWER','LENGTH',
+                              'SUBSTR','REPLACE','TRIM','TOTAL','ABS','TYPEOF','INSTR','PRINTF','ZEROBLOB'];
+
+            let result = escaped;
+            // Highlight keywords
+            const kwPattern = new RegExp(`\\b(${keywords.join('|')})\\b`, 'gi');
+            result = result.replace(kwPattern, (m) => {
+                const upper = m.toUpperCase();
+                const functions = ['COUNT','SUM','AVG','MIN','MAX','COALESCE','CAST','IFNULL',
+                                   'NULLIF','STRFTIME','DATE','ROUND','UPPER','LOWER','LENGTH',
+                                   'SUBSTR','REPLACE','TRIM','TOTAL','ABS','TYPEOF','INSTR','PRINTF','ZEROBLOB'];
+                if (functions.includes(upper)) {
+                    return `<span class="sql-function">${m}</span>`;
+                }
+                return `<span class="sql-keyword">${m}</span>`;
+            });
+
+            // Highlight numbers (standalone)
+            result = result.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="sql-number">$1</span>');
+
+            // Highlight strings
+            result = result.replace(/&#39;([^&#]*(?:&#[^3]*)*?)&#39;/g, '<span class="sql-string">\'$1\'</span>');
+
+            return result;
+        }
+    })();
+    </script>
+</body>
+</html>
